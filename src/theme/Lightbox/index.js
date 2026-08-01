@@ -14,6 +14,10 @@ function isImageHref(href = "") {
   return /\.(png|jpe?g|webp|gif|avif|svg)(\?|#|$)/i.test(href);
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function shouldOpenLightbox(image) {
   if (!(image instanceof HTMLImageElement)) {
     return false;
@@ -52,7 +56,7 @@ function sanitizeSvgIds(clone) {
 
         idMap.forEach((newId, oldId) => {
           if (val.includes(`#${oldId}`)) {
-            val = val.replace(new RegExp(`#${oldId}\\b`, "g"), `#${newId}`);
+            val = val.replace(new RegExp(`#${escapeRegExp(oldId)}\\b`, "g"), `#${newId}`);
             changed = true;
           }
 
@@ -141,6 +145,12 @@ export default function ImageLightbox() {
 
     const parentLink = image.closest("a");
     if (parentLink) {
+      const isUnmodifiedPrimaryClick =
+        event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+      if (!isUnmodifiedPrimaryClick) {
+        return;
+      }
+
       const href = parentLink.getAttribute("href") || "";
       const sameAsImage =
         href === image.currentSrc || href === image.src || href === image.getAttribute("src");
