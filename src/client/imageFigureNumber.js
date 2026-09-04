@@ -23,11 +23,68 @@ export function onRouteDidUpdate({ location }) {
 
   const locale = localeFromPathname(location.pathname);
 
-  // A single rAF tick is sufficient: Docusaurus has already committed the new
-  // page content to the DOM by the time onRouteDidUpdate fires. Using rAF
+  // A single rAF tick is sufficient for committed DOM elements. Using rAF
   // instead of multiple staggered setTimeouts avoids duplicate caption
   // injections when routes are navigated quickly.
   requestAnimationFrame(() => addFigureNumbers(locale));
+}
+
+/**
+ * Determine if an image is a logo or small icon that should be skipped.
+ * Handles images with explicit HTML/CSS width attributes (e.g. <img width="600px">)
+ * even when rendered height is 0 before the image finishes loading.
+ *
+ * @param {HTMLImageElement} img
+ * @returns {boolean}
+ */
+function isIconImage(img) {
+  const parentClass = img.parentElement?.className || "";
+  const isLogo = parentClass.includes("logo") || (img.alt && img.alt.includes("logo"));
+  if (isLogo) {
+    return true;
+  }
+
+  // Parse explicit width/height attributes (e.g. width="600px" or width="600")
+  const attrWidth = parseInt(img.getAttribute("width") || "", 10);
+  const attrHeight = parseInt(img.getAttribute("height") || "", 10);
+
+  // If explicit width or height attribute is >= 100, it is a content figure, not an icon
+  if ((!isNaN(attrWidth) && attrWidth >= 100) || (!isNaN(attrHeight) && attrHeight >= 100)) {
+    return false;
+  }
+
+  // If explicit width or height attribute is small (> 0 and < 100), it is an icon
+  if (
+    (!isNaN(attrWidth) && attrWidth > 0 && attrWidth < 100) ||
+    (!isNaN(attrHeight) && attrHeight > 0 && attrHeight < 100)
+  ) {
+    return true;
+  }
+
+  const w = img.naturalWidth || img.clientWidth || img.width;
+  const h = img.naturalHeight || img.clientHeight || img.height;
+
+  // If rendered/natural width is >= 100, it is a content figure
+  if (w >= 100) {
+    return false;
+  }
+
+  // If rendered/natural height is >= 100, it is a content figure
+  if (h >= 100) {
+    return false;
+  }
+
+  // If both rendered/natural dimensions are known and small (> 0 and < 100)
+  if (w > 0 && w < 100 && h > 0 && h < 100) {
+    return true;
+  }
+
+  // If width is known and small (> 0 and < 100)
+  if (w > 0 && w < 100) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -44,10 +101,12 @@ function addFigureNumbers(locale) {
 
   // Find all images that are not logos or small icons
   const images = Array.from(articleContent.querySelectorAll("img")).filter((img) => {
-    const parentClass = img.parentElement?.className || "";
-    const isLogo = parentClass.includes("logo") || img.alt.includes("logo");
-    const isIcon = img.width < 100 || img.height < 100;
-    return !isLogo && !isIcon;
+    // Re-run captioning when lazy/slow images complete loading
+    if (!img.complete && !img.dataset.hasLoadListener) {
+      img.dataset.hasLoadListener = "true";
+      img.addEventListener("load", () => addFigureNumbers(locale), { once: true });
+    }
+    return !isIconImage(img);
   });
 
   let figureCount = 0;

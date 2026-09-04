@@ -95,7 +95,7 @@ function processSection(section, publishTimes, authorsMap) {
   publishTimes.add(`${date}T${hour}:00`);
 
   return {
-    title: title.replace(/ \(.*\)/, ""),
+    title: title.replace(/ \(.*\)/, ''),
     content: `---
 mdx:
  format: md
