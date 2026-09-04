@@ -104,7 +104,11 @@ function addFigureNumbers(locale) {
     // Re-run captioning when lazy/slow images complete loading
     if (!img.complete && !img.dataset.hasLoadListener) {
       img.dataset.hasLoadListener = "true";
-      img.addEventListener("load", () => addFigureNumbers(locale), { once: true });
+      img.addEventListener(
+        "load",
+        () => addFigureNumbers(localeFromPathname(window.location.pathname)),
+        { once: true },
+      );
     }
     return !isIconImage(img);
   });
