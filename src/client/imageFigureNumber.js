@@ -15,9 +15,19 @@ function localeFromPathname(pathname) {
   return pathname.startsWith("/zh/") || pathname === "/zh" ? "zh" : "en";
 }
 
+/**
+ * Only blog and doc pages (including root doc paths like /docs or /zh/docs)
+ * get figure numbering.
+ *
+ * @param {string} pathname
+ * @returns {boolean}
+ */
+function isSupportedRoute(pathname) {
+  return /(?:^|\/)(?:blog|docs)(?:$|\/)/.test(pathname);
+}
+
 export function onRouteDidUpdate({ location }) {
-  // Only run on blog and doc pages (including root doc paths like /docs or /zh/docs)
-  if (!/(?:^|\/)(?:blog|docs)(?:$|\/)/.test(location.pathname)) {
+  if (!isSupportedRoute(location.pathname)) {
     return;
   }
 
@@ -123,7 +133,15 @@ function addFigureNumbers(locale) {
       img.dataset.hasLoadListener = "true";
       img.addEventListener(
         "load",
-        () => addFigureNumbers(localeFromPathname(window.location.pathname)),
+        () => {
+          // Re-check the route: by the time a slow image loads, navigation
+          // may have moved to a page this script shouldn't touch.
+          const pathname = window.location.pathname;
+          if (!isSupportedRoute(pathname)) {
+            return;
+          }
+          addFigureNumbers(localeFromPathname(pathname));
+        },
         { once: true },
       );
     }
