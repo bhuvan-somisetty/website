@@ -88,6 +88,23 @@ function isIconImage(img) {
 }
 
 /**
+ * Undo the <figure>/<figcaption> wrapping that this script previously applied
+ * to an image, used when a reload reveals the image is actually an icon
+ * (e.g. it had no width/height attributes and looked like content pre-load).
+ *
+ * @param {HTMLImageElement} img
+ */
+function unwrapAutoFigure(img) {
+  const figure = img.closest("figure");
+  if (!figure || !figure.dataset.autoFigure) {
+    return;
+  }
+  const wrapped = img.parentElement && img.parentElement.tagName === "A" ? img.parentElement : img;
+  figure.parentNode.insertBefore(wrapped, figure);
+  figure.remove();
+}
+
+/**
  * @param {"zh" | "en"} locale
  */
 function addFigureNumbers(locale) {
@@ -110,7 +127,13 @@ function addFigureNumbers(locale) {
         { once: true },
       );
     }
-    return !isIconImage(img);
+    const isIcon = isIconImage(img);
+    if (isIcon) {
+      // An earlier pass may have wrapped this image before it finished loading
+      // and its true (small) dimensions were known; undo that now.
+      unwrapAutoFigure(img);
+    }
+    return !isIcon;
   });
 
   let figureCount = 0;
@@ -128,6 +151,7 @@ function addFigureNumbers(locale) {
     let figure = img.closest("figure");
     if (!figure) {
       figure = document.createElement("figure");
+      figure.dataset.autoFigure = "true";
       const targetElement =
         img.parentElement && img.parentElement.tagName === "A" ? img.parentElement : img;
       targetElement.parentNode.insertBefore(figure, targetElement);
